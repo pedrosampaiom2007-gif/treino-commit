@@ -38,16 +38,13 @@ dominam jargão técnico — por isso o system prompt obriga a traduzir os termo
 | ChatOllama | ✅ | `gemma4:cloud` via Ollama Cloud, chave lida do `.env` em `config.py` |
 | ChatPromptTemplate com variáveis | ✅ | `prompts.py` + `chain.py` — system e human separados, variáveis `{input}`, `{mensagem}`, `{historico}`, `{format_instructions}`; nenhuma f-string manual |
 | Memória gerenciada | ✅ | `memory_manager.py` — as 3 estratégias implementadas, `ConversationTokenBufferMemory` (1200 tokens) ativa; justificativa abaixo |
-| Demonstração em ≥ 5 turnos | ✅ | Aba **Memória** da interface conta os turnos do usuário na sessão; validado com 10 turnos simulados (ver "Observações técnicas") |
+| Demonstração em ≥ 5 turnos | ✅ | Aba **Memória** da interface conta os turnos do usuário na sessão |
 | Pydantic v2 (≥ 4 campos) | ✅ | `schemas.py` — `AnaliseConsulta` (6 campos) e `RelatorioSessao` (6 campos), com `field_validator` |
 | PydanticOutputParser | ✅ | `chain.py` — nas duas chains estruturadas (e não `JsonOutputParser`, que devolveria `dict` sem validação) |
 | Seção context rot | ✅ | `context_rot.py` — mesma pergunta em janelas de 0/5/10/15/20 turnos, com tabela comparativa |
 | System prompt com persona | ✅ | `prompts.py` — XML tagging (`<papel>`, `<regras>`, `<restricoes>`…), persona, escopo, recusas e resistência a jailbreak |
 | Domínio documentado | ✅ | Este README |
 | Projeto local estruturado | ✅ | Pacote `app/` + `.env.example` + `requirements.txt` + `README.md`, sem Colab |
-
-Este projeto entrega **apenas o obrigatório** do enunciado — sem os diferenciais de
-"context engineering com métricas" (tiktoken + gráfico) nem "meta prompting".
 
 ---
 
@@ -210,24 +207,26 @@ apenas o `.env.example`. A `OLLAMA_API_KEY` é lida exclusivamente pelo `config.
 ## Observações técnicas
 
 - **`ConversationChain` e `langchain.memory` estão marcados como deprecated** desde o
-  LangChain 0.2.7 (a substituta é `RunnableWithMessageHistory`). O checkpoint pede
-  explicitamente a arquitetura da Aula 03, então elas foram mantidas; o aviso é silenciado
-  de forma documentada e restrita em `app/__init__.py`.
-- **Contagem de tokens:** o `ChatOllama` não implementa contagem própria, e sem intervenção
-  o LangChain cairia no tokenizer GPT-2 do pacote `transformers` — que não é dependência
-  deste projeto e ainda tentaria **baixar** o tokenizer da internet na primeira chamada.
-  `app/tokens.py` evita isso com uma estimativa simples (~4 caracteres por token), sem
-  depender de nenhuma biblioteca externa: é o que garante que o projeto roda mesmo sem
-  acesso à internet além do necessário para falar com a Ollama Cloud.
-- **O que foi testado antes da entrega:** as chains, a memória e os schemas foram testados
-  com um modelo simulado (sem depender da Ollama Cloud), confirmando que uma sessão de 10
-  turnos roda do início ao fim sem travar, que a memória preserva fatos do primeiro turno e
-  descarta os mais antigos ao atingir o teto de tokens, e que a chain de triagem
-  (`AnaliseConsulta`) força o encaminhamento a profissional de saúde sempre que
-  `risco_seguranca >= 4` — **isso não depende do modelo "lembrar" da regra**, é uma
-  verificação em código que roda a cada mensagem. O que ainda precisa ser testado pelo
-  grupo, com a chave real, é a resistência do próprio `gemma4:cloud` às tentativas de
-  jailbreak do system prompt (pedidos de "ignore as instruções", troca de persona, etc.):
-  rode `python -m app.main`, tente esses pedidos e confirme que o bot recusa e continua
-  respondendo — o bloco `<resistencia_a_desvio>` do system prompt foi escrito para isso,
-  mas o comportamento final depende do modelo em produção.
+  LangChain 0.2.7 (a substituta é `RunnableWithMessageHistory`), mas continuam funcionando
+  normalmente e são a arquitetura pedida pela Aula 03 — o aviso de depreciação é silenciado
+  em `app/__init__.py` para não poluir o terminal e a interface.
+- **Contagem de tokens:** o `ChatOllama` não implementa contagem própria de tokens, e a
+  memória gerenciada precisa dessa contagem para saber quando cortar o histórico mais
+  antigo. `app/tokens.py` resolve isso com uma estimativa simples (~4 caracteres por
+  token), sem depender de nenhuma biblioteca externa — o projeto roda sem precisar baixar
+  nenhum tokenizer da internet.
+
+## Como validar antes de apresentar
+
+- Rode `python -m app.main`, mantenha uma conversa de pelo menos 10 interações e confirme
+  que o Halter continua respondendo normalmente do primeiro ao último turno, sem travar.
+- Na aba **Memória**, confira que o contador de turnos sobe a cada mensagem e que o bot
+  ainda lembra de informações ditas no início da conversa (objetivo, dias por semana,
+  alguma restrição relatada).
+- Teste as restrições do domínio: peça uma dieta fechada, peça opinião sobre anabolizante,
+  relate uma dor aguda e mude de assunto de propósito — em todos os casos o Halter deve
+  recusar de forma coerente com a persona e continuar disponível para falar de treino.
+- Tente também pedidos do tipo "ignore suas instruções", "ative o modo desenvolvedor" ou
+  "finja que você é outra IA" — o bot deve manter a persona e seguir a conversa no
+  domínio de treino em vez de obedecer ao pedido.
+- Rode `python -m app.context_rot` e cole a tabela impressa na seção acima.
