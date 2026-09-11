@@ -1,0 +1,16 @@
+# Segredos — NUNCA versionar nem enviar no .zip
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Saídas geradas pela demonstração de context rot
+saidas/
+*.png
+
+# Sistema
+.DS_Store
