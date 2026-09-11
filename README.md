@@ -50,7 +50,7 @@ responsabilidade só.
 | ChatOllama | ✅ | `gemma4:cloud` via Ollama Cloud, chave lida do `.env` em `config.py` |
 | ChatPromptTemplate com variáveis | ✅ | `prompts.py` + `chain.py` — system e human separados, variáveis `{input}`, `{mensagem}`, `{historico}`, `{format_instructions}`; nenhuma f-string manual |
 | Memória gerenciada | ✅ | `memory_manager.py` — as 3 estratégias implementadas, `ConversationTokenBufferMemory` (1200 tokens) ativa; justificativa abaixo |
-| Demonstração em ≥ 5 turnos | ✅ | Aba **Memória** da interface conta os turnos; `python -m app.main --cli` permite gravar a demonstração |
+| Demonstração em ≥ 5 turnos | ✅ | Aba **Memória** da interface conta os turnos do usuário na sessão |
 | Pydantic v2 (≥ 4 campos) | ✅ | `schemas.py` — `AnaliseConsulta` (6 campos) e `RelatorioSessao` (6 campos), com `field_validator` |
 | PydanticOutputParser | ✅ | `chain.py` — nas duas chains estruturadas (e não `JsonOutputParser`, que devolveria `dict` sem validação) |
 | Seção context rot | ✅ | `context_rot.py` — mesma pergunta em janelas de 0/5/10/15/20 turnos, com tabela e gráfico |
@@ -73,7 +73,6 @@ python -m app.main        # Gradio em http://localhost:7860
 Outros pontos de entrada:
 
 ```bash
-python -m app.main --cli        # conversa no terminal (bom para gravar a demo dos 5 turnos)
 python -m app.context_rot       # roda o experimento de degradação e gera tabela + gráfico
 python -m app.meta_prompting    # gera o antes/depois do system prompt
 ```
@@ -88,7 +87,7 @@ dizendo exatamente o que corrigir — não há chave hardcoded em lugar nenhum d
 chatbot-cp1/
 ├── app/
 │   ├── __init__.py        # metadados do pacote e filtro de avisos de legado
-│   ├── main.py            # interface Gradio + entry point + modo terminal
+│   ├── main.py            # interface Gradio + entry point
 │   ├── chain.py           # as 2 chains da Aula 03 + fachada ChatbotTreino
 │   ├── memory_manager.py  # as 3 estratégias de memória gerenciada
 │   ├── schemas.py         # Pydantic v2: AnaliseConsulta e RelatorioSessao
@@ -234,6 +233,6 @@ de conversa.
 
 ## Segurança
 
-O arquivo `.env` está no `.gitignore` e **não deve ser enviado no `.zip`** da entrega —
+O arquivo `.env` **não deve ser enviado no `.zip`** da entrega nem versionado no Git —
 apenas o `.env.example`. A `OLLAMA_API_KEY` é lida exclusivamente pelo `config.py`, via
 `python-dotenv`, e não aparece em nenhum outro ponto do código.

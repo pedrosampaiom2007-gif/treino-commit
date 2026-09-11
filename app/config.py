@@ -1,8 +1,8 @@
 """Configuração central do projeto, lida exclusivamente do arquivo .env.
 
 Regra do checkpoint: a OLLAMA_API_KEY nunca pode estar hardcoded no código.
-Ela é carregada com python-dotenv a partir do .env, que está no .gitignore e
-não é enviado no .zip da entrega (apenas o .env.example).
+Ela é carregada com python-dotenv a partir do .env, que não é versionado nem
+enviado no .zip da entrega (apenas o .env.example).
 """
 
 from __future__ import annotations

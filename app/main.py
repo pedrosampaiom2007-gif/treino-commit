@@ -1,7 +1,6 @@
 """Interface Gradio + entry point do CKP01.
 
     python -m app.main          # sobe a interface em http://localhost:7860
-    python -m app.main --cli    # modo terminal, útil para demonstrar os 5 turnos
     python -m app.main --share  # link público temporário do Gradio
 """
 
@@ -259,49 +258,10 @@ def construir_interface(app: Aplicacao):
 
 
 # ---------------------------------------------------------------------------
-# Modo terminal
-# ---------------------------------------------------------------------------
-def rodar_cli(app: Aplicacao) -> None:
-    """Loop de conversa no terminal — prático para gravar a demo dos 5 turnos."""
-    print(f"\n{TITULO}\n{'=' * len(TITULO)}")
-    print(f"{NOME_ASSISTENTE}: {MENSAGEM_ABERTURA}")
-    print("\n(digite 'sair' para encerrar, 'relatorio' para fechar a sessão, "
-          "'memoria' para ver o estado da memória)\n")
-
-    while True:
-        try:
-            mensagem = input("Você: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nAté a próxima!")
-            return
-
-        if mensagem.lower() in {"sair", "exit", "quit"}:
-            print("Até a próxima!")
-            return
-        if mensagem.lower() == "relatorio":
-            print("\n" + app.relatorio() + "\n")
-            continue
-        if mensagem.lower() == "memoria":
-            print("\n" + app.painel_memoria() + "\n")
-            continue
-
-        resposta, _ = app.conversar(mensagem)
-        print(f"\n{NOME_ASSISTENTE}: {resposta}\n")
-        if app.ultima_analise is not None:
-            a = app.ultima_analise
-            print(
-                f"   [triagem] objetivo={a.objetivo_treino} "
-                f"nivel={a.nivel_experiencia} risco={a.risco_seguranca}/5 "
-                f"fora_do_escopo={a.fora_do_escopo}\n"
-            )
-
-
-# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=TITULO)
-    parser.add_argument("--cli", action="store_true", help="Modo terminal, sem Gradio.")
     parser.add_argument("--share", action="store_true", help="Link público do Gradio.")
     parser.add_argument("--porta", type=int, default=7860, help="Porta do Gradio.")
     parser.add_argument("--verbose", action="store_true", help="Loga as chains.")
@@ -316,20 +276,15 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     app = Aplicacao(verbose=args.verbose)
 
-    if args.cli:
-        rodar_cli(app)
-        return 0
-
     try:
         demo = construir_interface(app)
     except ImportError:
         print(
-            "Gradio não está instalado (pip install -r requirements.txt). "
-            "Caindo no modo terminal.\n",
+            "\n❌ Gradio não está instalado. Rode:  "
+            "pip install -r requirements.txt\n",
             file=sys.stderr,
         )
-        rodar_cli(app)
-        return 0
+        return 1
 
     import gradio as gr
 
