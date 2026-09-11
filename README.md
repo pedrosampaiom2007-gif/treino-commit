@@ -50,20 +50,50 @@ dominam jargão técnico — por isso o system prompt obriga a traduzir os termo
 
 ## Como executar (local — sem Colab)
 
-```bash
-cp .env.example .env      # edite com a sua OLLAMA_API_KEY — este arquivo NÃO vai no .zip
+Requer **Python 3.10 a 3.13**. Todos os comandos são rodados de dentro da pasta do
+projeto — a que contém `requirements.txt` e a pasta `app/`.
+
+**Windows (Prompt de Comando):**
+
+```cmd
+cd caminho\para\CKP01_treino_grupo
+copy .env.example .env
+notepad .env
 pip install -r requirements.txt
-python -m app.main        # Gradio em http://localhost:7860
+python -m app.main
 ```
 
-A chave da Ollama Cloud sai de <https://ollama.com> → *Settings* → *Keys*. Se o `.env`
-estiver faltando ou mal preenchido, o programa para logo no início com uma mensagem
-dizendo exatamente o que corrigir — não há chave hardcoded em lugar nenhum do código.
+**Linux e macOS:**
+
+```bash
+cd caminho/para/CKP01_treino_grupo
+cp .env.example .env
+pip install -r requirements.txt
+python -m app.main
+```
+
+A interface sobe em <http://localhost:7860>.
+
+No `.env`, troque `coloque_sua_chave_aqui` pela chave da Ollama Cloud, que sai de
+<https://ollama.com> → *Settings* → *Keys*. Se o `.env` estiver faltando ou mal
+preenchido, o programa para logo no início com uma mensagem dizendo exatamente o que
+corrigir — não há chave hardcoded em lugar nenhum do código.
 
 Para rodar a demonstração de context rot separadamente:
 
 ```bash
 python -m app.context_rot
+```
+
+### Se o `pip install` falhar
+
+Quase sempre é versão de Python. O `gradio` e suas dependências ainda não têm pacote
+pronto para as versões mais novas do Python (3.14+), e a instalação tenta compilar do
+zero e falha. Instale o Python 3.12 e rode apontando para ele:
+
+```cmd
+py -3.12 -m pip install -r requirements.txt
+py -3.12 -m app.main
 ```
 
 ### Estrutura
