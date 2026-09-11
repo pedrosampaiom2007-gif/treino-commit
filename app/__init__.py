@@ -7,8 +7,7 @@ Módulos:
     schemas         -> modelos Pydantic v2 que validam as saídas
     memory_manager  -> as 3 estratégias de memória gerenciada (Aula 02)
     chain           -> arquitetura de 2 chains da Aula 03 (conversa + LCEL)
-    context_rot     -> demonstração empírica da degradação por contexto
-    meta_prompting  -> diferencial: o modelo reescrevendo o próprio prompt
+    context_rot     -> demonstração da degradação por contexto crescente
     main            -> interface Gradio + entry point (python -m app.main)
 """
 
@@ -47,5 +46,4 @@ __all__ = [
     "memory_manager",
     "chain",
     "context_rot",
-    "meta_prompting",
 ]

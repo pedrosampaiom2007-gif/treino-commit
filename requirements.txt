@@ -14,9 +14,3 @@ python-dotenv>=1.0.1
 
 # Interface web local
 gradio>=4.44.0,<7.0
-
-# Contagem de tokens para a demonstração de context rot (diferencial)
-tiktoken>=0.7.0
-
-# Gráfico comparativo do context rot (diferencial)
-matplotlib>=3.8.0

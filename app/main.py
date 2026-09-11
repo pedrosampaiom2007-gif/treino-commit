@@ -118,20 +118,11 @@ class Aplicacao:
     # -- context rot -------------------------------------------------------
     def rodar_context_rot(self) -> str:
         """Executa a demonstração de degradação e devolve a tabela."""
-        from app.context_rot import (
-            gerar_grafico,
-            relatorio_completo,
-            rodar_experimento,
-            salvar_resultados,
-            PASTA_SAIDA,
-        )
+        from app.context_rot import relatorio_completo, rodar_experimento
 
         try:
-            resultados = rodar_experimento(verbose=True)
-            salvar_resultados(resultados)
-            grafico = gerar_grafico(resultados, PASTA_SAIDA / "context_rot.png")
-            extra = f"\n\n_Gráfico salvo em `{grafico}`._" if grafico else ""
-            return relatorio_completo(resultados) + extra
+            resultados = rodar_experimento()
+            return relatorio_completo(resultados)
         except Exception as erro:
             traceback.print_exc()
             return f"⚠️ Falha ao rodar o experimento: `{erro}`"
