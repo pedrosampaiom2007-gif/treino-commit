@@ -184,21 +184,27 @@ Como só o contexto muda, qualquer queda observada é atribuível ao volume de c
 
 | Turnos de contexto | ~Tokens do prompt | Objetivo | Frequência | Restrição de segurança |
 |---:|---:|:--:|:--:|:--:|
-| 0 | | | | |
-| 5 | | | | |
-| 10 | | | | |
-| 15 | | | | |
-| 20 | | | | |
+| 0 | 1275 | ✅ | ✅ | ❌ |
+| 5 | 1491 | ❌ | ✅ | ✅ |
+| 10 | 1662 | ❌ | ✅ | ✅ |
+| 15 | 1809 | ❌ | ❌ | ✅ |
+| 20 | 1974 | ❌ | ❌ | ✅ |
 
-> 📌 **Rode `python -m app.context_rot` com a sua chave e cole a tabela impressa aqui.**
-> O comando já imprime a tabela pronta em Markdown no terminal.
+**Conclusão:** do contexto de 0 para 20 turnos, o recall dos fatos plantados caiu de 2/3
+para 1/3. É o context rot: a informação continua DENTRO da janela, mas o modelo deixa de
+usá-la conforme o volume de contexto ao redor cresce. É por isso que a memória deste
+projeto tem teto de tokens em vez de acumular a conversa inteira.
 
-**O que observar.** Conforme o número de turnos de enchimento cresce, o prompt fica maior
-sem que nenhum fato tenha saído da janela do modelo — a informação continua tecnicamente
-acessível. O que se degrada é o *uso* dela: os fatos plantados competem com um volume
-crescente de texto irrelevante. Normalmente os primeiros detalhes a se perder são os
-numéricos (a frequência semanal), seguidos do objetivo; a restrição de segurança tende a
-resistir mais por ser a instrução mais enfática do system prompt.
+**O que observar.** O primeiro fato a se perder foi o objetivo (hipertrofia), já a partir
+de 5 turnos de enchimento; a frequência semanal (4x) resistiu até os 10 turnos e caiu a
+partir dos 15. A coluna de restrição de segurança chama atenção por ir na direção
+contrária — ela aparece como ❌ só no turno 0 e ✅ daí em diante. Olhando a resposta
+completa daquele turno, o modelo respeitou a limitação na prática ("respeitando sua
+limitação, vamos focar na parte frontal..."), só que com uma palavra diferente da que o
+verificador procura (`restri`, `evitar`, `lesão`...); os turnos seguintes usaram
+literalmente a palavra "restrição" e por isso pontuaram. Ou seja: nesse critério específico
+o resultado reflete uma limitação do verificador por palavra-chave, não uma falha real do
+modelo — mas a queda no objetivo e na frequência é um sinal direto e real de degradação.
 
 **Conclusão de engenharia.** Contexto maior não é contexto melhor. É essa observação que
 sustenta a memória com **teto** (em vez de acumular a conversa inteira) e a verificação de
