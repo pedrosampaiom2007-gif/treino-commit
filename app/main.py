@@ -71,6 +71,7 @@ class Aplicacao:
         grupos = ", ".join(a.grupos_musculares) if a.grupos_musculares else "—"
         alerta = "🚨 **Encaminhar a profissional de saúde**" if a.exige_encaminhamento() else "—"
         escopo = "❌ fora do escopo" if a.fora_do_escopo else "✅ dentro do escopo"
+        manipulacao = "🛑 **sim — bloqueado**" if a.tentativa_manipulacao else "—"
         return (
             "### `AnaliseConsulta` — saída validada por Pydantic v2\n\n"
             f"| Campo | Valor |\n|---|---|\n"
@@ -79,6 +80,7 @@ class Aplicacao:
             f"| `grupos_musculares` | {grupos} |\n"
             f"| `risco_seguranca` | {a.risco_seguranca}/5 |\n"
             f"| `fora_do_escopo` | {escopo} |\n"
+            f"| `tentativa_manipulacao` | {manipulacao} |\n"
             f"| `resumo_intencao` | {a.resumo_intencao} |\n\n"
             f"{alerta}\n\n"
             "<details><summary>JSON bruto</summary>\n\n```json\n"

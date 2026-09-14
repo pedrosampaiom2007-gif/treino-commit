@@ -16,6 +16,7 @@ RelatorioSessao — mesma técnica, outra saída validada.
 
 from __future__ import annotations
 
+import re
 from typing import Optional, Tuple
 
 from langchain.chains import ConversationChain
@@ -50,6 +51,54 @@ from app.tokens import token_ids
 
 
 # ---------------------------------------------------------------------------
+# Camada 1 de segurança — filtro determinístico contra prompt injection
+# ---------------------------------------------------------------------------
+# Este filtro roda ANTES de qualquer chamada ao modelo. Ele pega os padrões
+# de jailbreak mais comuns e batidos ("ignore suas instruções", "modo
+# desenvolvedor", "finja que você é...") e bloqueia sem gastar uma chamada
+# ao LLM e sem depender de o modelo "decidir" recusar. É a camada mais
+# barata e mais confiável: não importa o que o gemma4 faria, esses padrões
+# nunca chegam ao prompt de conversa.
+#
+# Ela não substitui a camada 2 (a classificação `tentativa_manipulacao` na
+# chain de triagem, em prompts.py) — a regex só pega frases batidas; pedidos
+# de manipulação escritos de um jeito novo passam por aqui e são pegos pela
+# triagem, que entende contexto e não só padrão de texto.
+_PADROES_INJECAO = [
+    r"ignor[ea]\w*\s+(as\s+|todas\s+as\s+|suas\s+)?instru[cç][oõ]es",
+    r"ignore\s+(all\s+|previous\s+|prior\s+|the\s+above\s+)*instructions",
+    r"esque[cç]a\s+(as\s+|suas\s+|todas\s+as\s+)?(regras|instru[cç][oõ]es)",
+    r"forget\s+(all\s+|your\s+|previous\s+)?(rules|instructions)",
+    r"modo\s+(desenvolvedor|debug|admin|deus|god)\b",
+    r"developer\s+mode",
+    r"\bdan\s+mode\b",
+    r"jailbreak",
+    r"(revele|mostre|repita|reescreva|traduza|imprima)\s+(o\s+|seu\s+)?system\s*prompt",
+    r"(revele|mostre|repita|imprima)\s+suas?\s+instru[cç][oõ]es",
+    r"finja\s+que\s+(voc[eê])\s+[eé]",
+    r"a\s+partir\s+de\s+agora\s+(voc[eê])\s+[eé]",
+    r"pretend\s+(you\s+are|to\s+be)",
+    r"act\s+as\s+(if\s+you|a[n]?\s)",
+    r"you\s+are\s+now\b",
+    r"\[\s*system\s*\]",
+    r"###\s*(nova\s+)?instru",
+    r"sou\s+(o\s+)?(desenvolvedor|administrador|admin|programador)\s+(deste|do)\s+"
+    r"(projeto|sistema|chatbot|bot)",
+]
+_REGEX_INJECAO = re.compile("|".join(_PADROES_INJECAO), flags=re.IGNORECASE | re.UNICODE)
+
+RESPOSTA_BLOQUEIO = (
+    "Não posso atender esse pedido. Sou o Halter, assistente de treino, e "
+    "sigo assim. Como posso te ajudar com o seu treino hoje?"
+)
+
+
+def detectar_tentativa_injecao(texto: str) -> bool:
+    """True quando o texto bate com um padrão conhecido de jailbreak."""
+    return _REGEX_INJECAO.search(texto or "") is not None
+
+
+# ---------------------------------------------------------------------------
 # Modelo — ChatOllama apontando para a Ollama Cloud
 # ---------------------------------------------------------------------------
 def construir_llm(config: Optional[Config] = None, temperatura: Optional[float] = None) -> ChatOllama:
@@ -80,13 +129,19 @@ def construir_prompt_chat() -> ChatPromptTemplate:
     """ChatPromptTemplate com system e human SEPARADOS e com variáveis.
 
     Nada de f-string manual: `{input}` é variável do template e `history` é o
-    slot preenchido pela memória a cada turno.
+    slot preenchido pela memória a cada turno. A mensagem do usuário é
+    delimitada por `<mensagem_usuario>` — o `<resistencia_a_desvio>` do
+    system prompt instrui o modelo a tratar tudo dentro dessa tag como fala
+    do usuário, nunca como uma instrução nova, mesmo que o texto tente
+    imitar uma.
     """
     return ChatPromptTemplate.from_messages(
         [
             SystemMessagePromptTemplate.from_template(SYSTEM_PROMPT_CHAT),
             MessagesPlaceholder(variable_name=CHAVE_MEMORIA),
-            HumanMessagePromptTemplate.from_template("{" + CHAVE_ENTRADA + "}"),
+            HumanMessagePromptTemplate.from_template(
+                "<mensagem_usuario>\n{" + CHAVE_ENTRADA + "}\n</mensagem_usuario>"
+            ),
         ]
     )
 
@@ -180,10 +235,37 @@ class ChatbotTreino:
     def responder_com_analise(self, mensagem: str) -> Tuple[str, AnaliseConsulta]:
         """Executa as 2 chains no mesmo turno: triagem + resposta conversacional.
 
-        A triagem roda ANTES: se ela marcar risco alto, o chatbot corta a
-        prescrição e encaminha a um profissional, sem gastar o turno de chat.
+        Três camadas rodam nesta ordem, cada uma mais cara que a anterior:
+
+        1. Filtro determinístico (regex) — pega jailbreaks batidos sem
+           chamar o modelo.
+        2. Triagem estruturada (`AnaliseConsulta`) — se marcar
+           `tentativa_manipulacao` ou risco de segurança alto, corta a
+           conversa normal sem gastar o turno de chat.
+        3. Chain de conversa — só roda se as duas primeiras liberarem.
         """
+        if detectar_tentativa_injecao(mensagem):
+            analise = AnaliseConsulta(
+                objetivo_treino="indefinido",
+                nivel_experiencia="indefinido",
+                grupos_musculares=[],
+                risco_seguranca=1,
+                fora_do_escopo=True,
+                tentativa_manipulacao=True,
+                resumo_intencao="Tentativa de manipular as instruções do assistente.",
+            )
+            self.memoria.save_context(
+                {CHAVE_ENTRADA: mensagem}, {"response": RESPOSTA_BLOQUEIO}
+            )
+            return RESPOSTA_BLOQUEIO, analise
+
         analise = self.analisar(mensagem)
+
+        if analise.exige_bloqueio():
+            self.memoria.save_context(
+                {CHAVE_ENTRADA: mensagem}, {"response": RESPOSTA_BLOQUEIO}
+            )
+            return RESPOSTA_BLOQUEIO, analise
 
         if analise.exige_encaminhamento():
             resposta = (

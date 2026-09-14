@@ -39,7 +39,7 @@ dominam jargão técnico — por isso o system prompt obriga a traduzir os termo
 | ChatPromptTemplate com variáveis | ✅ | `prompts.py` + `chain.py` — system e human separados, variáveis `{input}`, `{mensagem}`, `{historico}`, `{format_instructions}`; nenhuma f-string manual |
 | Memória gerenciada | ✅ | `memory_manager.py` — as 3 estratégias implementadas, `ConversationTokenBufferMemory` (1200 tokens) ativa; justificativa abaixo |
 | Demonstração em ≥ 5 turnos | ✅ | Aba **Memória** da interface conta os turnos do usuário na sessão |
-| Pydantic v2 (≥ 4 campos) | ✅ | `schemas.py` — `AnaliseConsulta` (6 campos) e `RelatorioSessao` (6 campos), com `field_validator` |
+| Pydantic v2 (≥ 4 campos) | ✅ | `schemas.py` — `AnaliseConsulta` (7 campos) e `RelatorioSessao` (6 campos), com `field_validator` |
 | PydanticOutputParser | ✅ | `chain.py` — nas duas chains estruturadas (e não `JsonOutputParser`, que devolveria `dict` sem validação) |
 | Seção context rot | ✅ | `context_rot.py` — mesma pergunta em janelas de 0/5/10/15/20 turnos, com tabela comparativa |
 | System prompt com persona | ✅ | `prompts.py` — XML tagging (`<papel>`, `<regras>`, `<restricoes>`…), persona, escopo, recusas e resistência a jailbreak |
@@ -209,24 +209,38 @@ imune ao rot que afeta a chain de conversa.
 
 ## Segurança e resistência a desvio de assunto
 
-O system prompt (`prompts.py`) inclui regras explícitas contra as tentativas mais comuns de
-tirar o bot do personagem ou do escopo:
+O projeto se defende de tentativas de manipulação em três camadas, cada uma mais cara que a
+anterior — se uma camada não pegar, a próxima pega:
 
-- Pedidos para "ignorar as instruções anteriores", "ativar modo desenvolvedor/debug",
-  simular ser outra IA, ou revelar/reescrever o próprio system prompt são recusados, e o
-  bot continua respondendo como Halter, no mesmo assunto de treino.
-- Alegações de autoridade ("sou o administrador", "sou o desenvolvedor") não mudam o
-  comportamento do bot — ele não tem como verificar a alegação e trata qualquer usuário da
-  mesma forma.
-- Pedidos de roleplay que trocariam a persona ("finja que você é...", "a partir de agora
-  você é...") são recusados; o bot mantém a persona de assistente de treino.
+**1. Filtro determinístico (`detectar_tentativa_injecao`, em `chain.py`).** Roda antes de
+qualquer chamada ao modelo e bloqueia por padrão de texto, sem depender do LLM: "ignore
+suas instruções", "modo desenvolvedor/debug/admin", "finja que você é...", "a partir de
+agora você é...", `[SYSTEM]`, alegações de ser o desenvolvedor/administrador, entre outros.
+Pega os ataques mais batidos com custo zero de chamada ao modelo.
+
+**2. Triagem estruturada (`AnaliseConsulta.tentativa_manipulacao`, em `schemas.py`).** Toda
+mensagem que passa pelo filtro acima é classificada por uma chain LCEL separada antes de
+chegar à conversa. Ela entende contexto, não só padrão de texto, e pega tentativas escritas
+de um jeito novo que a regex não previu. Se marcar `tentativa_manipulacao` ou
+`risco_seguranca >= 4`, a conversa normal é cortada e uma resposta fixa é usada no lugar —
+isso é uma verificação em código, então não depende do modelo "lembrar" de obedecer a uma
+regra no meio de uma conversa longa.
+
+**3. System prompt (`prompts.py`).** Última linha de defesa, para o que passar pelas duas
+camadas anteriores. O bloco `<resistencia_a_desvio>` instrui o modelo a nunca sair da
+persona do Halter, recusar pedidos de troca de identidade, alegações de autoridade e
+mensagens de sistema falsificadas — e a mensagem do usuário chega sempre delimitada por
+`<mensagem_usuario>`, com instrução explícita de tratar esse conteúdo como dado, nunca como
+comando, mesmo que o texto tente imitar uma instrução.
+
+Além disso:
+
 - Assuntos fora de treino/exercício/condicionamento físico são recusados em uma frase, com
   o bot reconduzindo a conversa ao próprio domínio.
 - Pedidos sobre anabolizantes, hormônios ou substâncias controladas são recusados.
 - Mensagens que indicam dor aguda, lesão recente ou risco de segurança cortam a prescrição
-  e encaminham a um profissional de saúde — essa verificação roda em uma chain estruturada
-  separada (`AnaliseConsulta`, com o campo `risco_seguranca`), então não depende apenas do
-  modelo "lembrar" de obedecer ao system prompt durante uma conversa longa.
+  e encaminham a um profissional de saúde — mesma lógica de código da camada 2, usando o
+  campo `risco_seguranca`.
 
 O arquivo `.env` **não deve ser enviado no `.zip`** da entrega nem versionado no Git —
 apenas o `.env.example`. A `OLLAMA_API_KEY` é lida exclusivamente pelo `config.py`, via
