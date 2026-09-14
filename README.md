@@ -248,23 +248,7 @@ Além disso:
   e encaminham a um profissional de saúde — mesma lógica de código da camada 2, usando o
   campo `risco_seguranca`.
 
-O arquivo `.env` **não deve ser enviado no `.zip`** da entrega nem versionado no Git —
-apenas o `.env.example`. A `OLLAMA_API_KEY` é lida exclusivamente pelo `config.py`, via
-`python-dotenv`, e não aparece em nenhum outro ponto do código.
-
 ---
-
-## Observações técnicas
-
-- **`ConversationChain` e `langchain.memory` estão marcados como deprecated** desde o
-  LangChain 0.2.7 (a substituta é `RunnableWithMessageHistory`), mas continuam funcionando
-  normalmente e são a arquitetura pedida pela Aula 03 — o aviso de depreciação é silenciado
-  em `app/__init__.py` para não poluir o terminal e a interface.
-- **Contagem de tokens:** o `ChatOllama` não implementa contagem própria de tokens, e a
-  memória gerenciada precisa dessa contagem para saber quando cortar o histórico mais
-  antigo. `app/tokens.py` resolve isso com uma estimativa simples (~4 caracteres por
-  token), sem depender de nenhuma biblioteca externa — o projeto roda sem precisar baixar
-  nenhum tokenizer da internet.
 
 ## Como validar antes de apresentar
 
